@@ -1,0 +1,20 @@
+{
+  "name": "freshify-event-app",
+  "version": "1.0.0",
+  "description": "Real-time event app with a Squid Game theme.",
+  "main": "functions/api.js",
+  "scripts": {
+    "start": "node functions/api.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "mongoose": "^8.4.4",
+    "serverless-http": "^3.2.0",
+    "socket.io": "^4.7.5"
+  }
+}

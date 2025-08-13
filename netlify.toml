@@ -1,0 +1,15 @@
+[build]
+  command = "npm install"
+  publish = "public"
+  functions = "functions"
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/socket.io/*"
+  to = "https://prarambh.netlify.app/.netlify/functions/api/socket.io/:splat"
+  status = 200
+  force = true

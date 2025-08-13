@@ -1,0 +1,245 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap');
+
+:root {
+    --squid-pink: #FF007A;
+    --squid-teal: #008D82;
+    --squid-black: #111111;
+    --squid-white: #FFFFFF;
+    --squid-grey: #333333;
+    --squid-yellow: #FFD700;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Montserrat', sans-serif;
+    background-color: var(--squid-black);
+    color: var(--squid-white);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px;
+    background-image: radial-gradient(circle, var(--squid-grey) 1px, transparent 1px);
+    background-size: 20px 20px;
+}
+
+.container {
+    position: relative; /* Needed for positioning the logout button */
+    width: 100%;
+    max-width: 800px;
+    background-color: rgba(0, 0, 0, 0.8);
+    border: 2px solid var(--squid-pink);
+    border-radius: 10px;
+    padding: 30px;
+    box-shadow: 0 0 20px var(--squid-pink);
+    backdrop-filter: blur(5px);
+}
+
+h1, h2 {
+    text-transform: uppercase;
+    font-weight: 900;
+    text-align: center;
+    margin-bottom: 20px;
+    letter-spacing: 2px;
+}
+
+h1 {
+    color: var(--squid-pink);
+    font-size: 2.5rem;
+}
+
+h2 {
+    color: var(--squid-teal);
+    font-size: 1.8rem;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 700;
+    color: var(--squid-white);
+}
+
+input[type="text"],
+input[type="password"],
+input[type="number"] {
+    width: 100%;
+    padding: 12px;
+    background-color: var(--squid-grey);
+    border: 2px solid var(--squid-teal);
+    border-radius: 5px;
+    color: var(--squid-white);
+    font-size: 1rem;
+    font-family: 'Montserrat', sans-serif;
+}
+
+input:focus {
+    outline: none;
+    border-color: var(--squid-pink);
+    box-shadow: 0 0 10px var(--squid-pink);
+}
+
+button {
+    width: 100%;
+    padding: 15px;
+    background-color: var(--squid-pink);
+    color: var(--squid-white);
+    border: none;
+    border-radius: 5px;
+    font-size: 1.2rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+button:hover {
+    background-color: var(--squid-white);
+    color: var(--squid-pink);
+    box-shadow: 0 0 15px var(--squid-white);
+}
+
+.error-message {
+    color: var(--squid-pink);
+    text-align: center;
+    margin-top: 15px;
+    font-weight: bold;
+}
+
+/* Student Game View */
+#game-view {
+    text-align: center;
+}
+
+.player-info {
+    display: flex;
+    justify-content: space-around;
+    background: var(--squid-grey);
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 30px;
+    border: 2px solid var(--squid-teal);
+}
+
+.info-box h2 {
+    font-size: 1.2rem;
+    margin-bottom: 10px;
+}
+
+.info-box span {
+    font-size: 2.5rem;
+    font-weight: 900;
+    color: var(--squid-yellow);
+}
+
+#auction-zone {
+    border: 2px dashed var(--squid-pink);
+    padding: 20px;
+    min-height: 150px;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+#eliminated-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.95);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+#eliminated-overlay h1 {
+    font-size: 5rem;
+    color: var(--squid-pink);
+    border: 5px solid var(--squid-pink);
+    padding: 40px;
+}
+
+/* General Utilities */
+.hidden {
+    display: none !important;
+}
+
+/* ================================================================
+*** NEW STYLES ADDED BELOW ***
+================================================================
+*/
+
+/* Logout Button Style */
+#logout-btn {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    width: auto; /* Override full width */
+    padding: 8px 15px;
+    font-size: 0.9rem;
+    background-color: var(--squid-grey);
+    border: 1px solid var(--squid-pink);
+}
+
+#logout-btn:hover {
+    background-color: var(--squid-pink);
+    color: var(--squid-white);
+}
+
+/* Welcome Card Style */
+#welcome-card {
+    background-color: #D2B48C; /* Kraft paper color */
+    color: #3B2F2F; /* Dark brown text */
+    padding: 20px;
+    margin-bottom: 30px;
+    border-radius: 4px;
+    font-family: 'Special Elite', monospace; /* Typewriter font */
+    text-align: center;
+    border: 1px solid #a08c6e;
+}
+
+#welcome-card p {
+    font-size: 1.5rem;
+    line-height: 1.5;
+}
+
+#welcome-card .event-name {
+    font-size: 2rem;
+    font-weight: bold;
+}
+
+#welcome-player-id {
+    font-size: 2.5rem;
+    color: #111;
+    margin-bottom: 15px;
+}
+
+/* Style for the new Admin Logout Button */
+#admin-logout-btn {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    width: auto; /* Override full width */
+    padding: 8px 15px;
+    font-size: 0.9rem;
+    background-color: var(--squid-grey);
+    border: 1px solid var(--squid-pink);
+}
+
+#admin-logout-btn:hover {
+    background-color: var(--squid-pink);
+    color: var(--squid-white);
+}

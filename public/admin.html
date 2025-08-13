@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container" id="admin-dashboard">
+        <button id="admin-logout-btn">Logout</button>
+        
+        <h1>Admin Control Panel</h1>
+
+        <div class="admin-panel">
+            <h2>Mass Elimination</h2>
+            <div class="form-group">
+                <label for="eliminate-numbers">Enter Player Numbers (comma-separated)</label>
+                <input type="text" id="eliminate-numbers" placeholder="e.g., 4, 15, 23, 112">
+            </div>
+            <button id="eliminate-btn">Eliminate Players</button>
+        </div>
+
+        <div class="admin-panel">
+            <h2>Coin Management</h2>
+            <div class="form-group">
+                <label for="coin-sapid">Student SAP ID</label>
+                <input type="text" id="coin-sapid" placeholder="Target SAP ID">
+            </div>
+            <div class="form-group">
+                <label for="coin-amount">Amount (use negative to remove)</label>
+                <input type="number" id="coin-amount" placeholder="-50 or 100">
+            </div>
+            <button id="update-coins-btn">Update Coins</button>
+        </div>
+        
+        <div class="admin-panel">
+            <h2>Auction Control</h2>
+            <div class="form-group">
+                <label for="item-name">Item Name</label>
+                <input type="text" id="item-name" placeholder="Mystery Box">
+            </div>
+            <button id="start-auction-btn">Start Auction</button>
+            <button id="end-auction-btn" style="background-color: var(--squid-teal); margin-top: 10px;">End Auction</button>
+        </div>
+
+        <div class="admin-panel">
+            <h2>Live Player Roster</h2>
+            <ul id="user-list">
+                </ul>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="admin.js"></script>
+</body>
+</html>
