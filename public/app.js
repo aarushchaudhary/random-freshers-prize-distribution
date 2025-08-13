@@ -18,28 +18,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const playerCoinsDisplay = document.getElementById('player-coins');
     const auctionZone = document.getElementById('auction-zone');
     const eliminatedOverlay = document.getElementById('eliminated-overlay');
+    const wonItemsList = document.getElementById('won-items-list');
 
     let currentUser = null;
 
-    // ================================================================
-    // *** 1. CHECK FOR SAVED SESSION ON PAGE LOAD ***
-    // ================================================================
+    // Check for a saved user session when the page loads
     function checkSession() {
         const savedUser = sessionStorage.getItem('currentUser');
         if (savedUser) {
             currentUser = JSON.parse(savedUser);
+            if (currentUser.isEliminated) {
+                eliminatedOverlay.classList.remove('hidden');
+                return; 
+            }
             showGameView();
         }
     }
-    // ================================================================
 
-
-    // --- LOGIN LOGIC ---
+    // LOGIN LOGIC
     loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const sapId = sapIdInput.value;
         const password = passwordInput.value;
-
         try {
             const response = await fetch('/api/login', {
                 method: 'POST',
@@ -47,14 +47,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({ sapId, password })
             });
             const data = await response.json();
-            
             if (data.success) {
-                // ================================================================
-                // *** 2. SAVE USER TO SESSION STORAGE ON LOGIN ***
-                // ================================================================
                 sessionStorage.setItem('currentUser', JSON.stringify(data.user));
-                // ================================================================
-
                 if (data.user.role === 'admin') {
                     window.location.href = 'admin.html';
                 } else {
@@ -71,34 +65,51 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
-    // --- LOGOUT LOGIC ---
+    // LOGOUT LOGIC
     logoutBtn.addEventListener('click', () => {
-        // ================================================================
-        // *** 3. CLEAR SESSION STORAGE ON LOGOUT ***
-        // ================================================================
         sessionStorage.removeItem('currentUser');
         location.reload();
-        // ================================================================
     });
 
-
+    // UI DISPLAY FUNCTIONS
     function showGameView() {
         loginView.classList.add('hidden');
         gameView.classList.remove('hidden');
-
-        // Populate the welcome message
         welcomePlayerId.textContent = `Player ${currentUser.name.split(' ')[0]}${currentUser.assignedNumber}`;
-
-        // Populate player info
         playerNumberDisplay.textContent = currentUser.assignedNumber.toString().padStart(3, '0');
         playerCoinsDisplay.textContent = currentUser.coins;
+        renderWonItems();
+    }
+    
+    function renderWonItems() {
+        wonItemsList.innerHTML = '';
+        if (currentUser.wonItems && currentUser.wonItems.length > 0) {
+            currentUser.wonItems.forEach(item => {
+                const li = document.createElement('li');
+                li.textContent = `${item.name} (Bid: ${item.winningBid} coins)`;
+                wonItemsList.appendChild(li);
+            });
+        } else {
+            const li = document.createElement('li');
+            li.textContent = '(No items won yet)';
+            wonItemsList.appendChild(li);
+        }
     }
 
-
-    // --- SOCKET.IO EVENT LISTENERS ---
+    // SOCKET.IO EVENT LISTENERS
     socket.on('event:playersEliminated', (data) => {
         if (currentUser && data.numbers.includes(currentUser.assignedNumber)) {
             eliminatedOverlay.classList.remove('hidden');
+            currentUser.isEliminated = true;
+            sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
+        }
+    });
+
+    socket.on('event:playerUnEliminated', (data) => {
+        if (currentUser && data.sapId === currentUser.sapId) {
+            eliminatedOverlay.classList.add('hidden');
+            currentUser.isEliminated = false;
+            sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
         }
     });
 
@@ -106,6 +117,16 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentUser && data.sapId === currentUser.sapId) {
             playerCoinsDisplay.textContent = data.newBalance;
             currentUser.coins = data.newBalance; 
+            sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
+        }
+    });
+
+    socket.on('event:auctionEnded', (data) => {
+        auctionZone.innerHTML = `<h3>Auction for ${data.itemName} ENDED!</h3><p>Winner: ${data.winnerSapId} with a bid of ${data.finalBid} coins.</p>`;
+        if (currentUser && data.winnerSapId === currentUser.sapId) {
+            currentUser.wonItems.push({ name: data.itemName, winningBid: data.finalBid });
+            renderWonItems();
+            sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
         }
     });
 
@@ -128,14 +149,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    socket.on('event:auctionEnded', (data) => {
-        auctionZone.innerHTML = `<h3>Auction for ${data.itemName} ENDED!</h3><p>Winner: ${data.winnerSapId} with a bid of ${data.finalBid} coins.</p>`;
-    });
-
     function placeBid() {
         const bidAmountInput = document.getElementById('bid-amount');
         const bidAmount = parseInt(bidAmountInput.value);
-
         if (isNaN(bidAmount) || bidAmount <= 0) {
             alert('Please enter a valid bid amount.');
             return;
@@ -144,7 +160,6 @@ document.addEventListener('DOMContentLoaded', () => {
             alert("You don't have enough coins for this bid.");
             return;
         }
-
         socket.emit('student:placeBid', {
             sapId: currentUser.sapId,
             name: currentUser.name,
@@ -153,6 +168,5 @@ document.addEventListener('DOMContentLoaded', () => {
         bidAmountInput.value = '';
     }
     
-    // Run the session check when the page first loads
     checkSession();
 });
