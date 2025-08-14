@@ -298,3 +298,100 @@ footer {
     color: rgba(255, 255, 255, 0.5); /* Muted white color */
     font-size: 0.8rem;
 }
+
+/* Shape Quest Overlay Styles */
+#shape-quest-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.95);
+    z-index: 999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: var(--squid-white);
+}
+
+.shape-quest-content {
+    text-align: center;
+    background-color: var(--squid-black);
+    padding: 50px;
+    border: 3px solid var(--squid-pink);
+    border-radius: 10px;
+}
+
+#shape-quest-timer {
+    font-size: 5rem;
+    font-weight: 900;
+    color: var(--squid-yellow);
+    margin: 20px 0;
+}
+
+.shape-options {
+    display: flex;
+    gap: 30px;
+    margin-bottom: 30px;
+}
+
+.shape-btn {
+    font-size: 5rem;
+    width: 120px;
+    height: 120px;
+    padding: 0;
+    line-height: 120px;
+    border: 3px solid var(--squid-teal);
+    background: var(--squid-grey);
+}
+
+.shape-btn:hover {
+    border-color: var(--squid-pink);
+    color: var(--squid-pink);
+}
+
+/* Live Player Stats Panel Styles */
+.stats-panel h2 {
+    margin-bottom: 10px;
+}
+.stats-container {
+    display: flex;
+    justify-content: space-around;
+    text-align: center;
+}
+.stat-box h3 {
+    font-size: 1rem;
+    color: var(--squid-teal);
+    margin-bottom: 5px;
+    text-transform: uppercase;
+}
+.stat-box span {
+    font-size: 2.5rem;
+    font-weight: 900;
+    color: var(--squid-yellow);
+}
+
+/* Radio Button Group Styles */
+.radio-group {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+}
+.radio-group label {
+    cursor: pointer;
+    padding: 5px 10px;
+}
+.radio-group input[type="radio"] {
+    display: none; /* Hide the default radio button */
+}
+.radio-group input[type="radio"] + label {
+    background-color: var(--squid-grey);
+    border: 1px solid var(--squid-teal);
+    border-radius: 5px;
+    transition: all 0.2s ease-in-out;
+}
+.radio-group input[type="radio"]:checked + label {
+    background-color: var(--squid-pink);
+    color: var(--squid-white);
+    border-color: var(--squid-pink);
+}

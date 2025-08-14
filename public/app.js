@@ -1,9 +1,11 @@
 document.addEventListener('DOMContentLoaded', () => {
     const socket = io();
 
-    // Views
+    // Views & Overlays
     const loginView = document.getElementById('login-view');
     const gameView = document.getElementById('game-view');
+    const eliminatedOverlay = document.getElementById('eliminated-overlay');
+    const shapeQuestOverlay = document.getElementById('shape-quest-overlay');
 
     // Login Elements
     const loginForm = document.getElementById('login-form');
@@ -17,18 +19,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const playerNumberDisplay = document.getElementById('player-number');
     const playerCoinsDisplay = document.getElementById('player-coins');
     const auctionZone = document.getElementById('auction-zone');
-    const eliminatedOverlay = document.getElementById('eliminated-overlay');
     const wonItemsList = document.getElementById('won-items-list');
+    const shapeQuestContent = document.querySelector('.shape-quest-content');
 
     let currentUser = null;
+    let shapeQuestTimerInterval;
 
+    // --- SESSION & LOGIN ---
     function checkSession() {
         const savedUser = sessionStorage.getItem('currentUser');
         if (savedUser) {
             currentUser = JSON.parse(savedUser);
             if (currentUser.isEliminated) {
                 eliminatedOverlay.classList.remove('hidden');
-                return; 
+                return;
             }
             showGameView();
         }
@@ -62,12 +66,13 @@ document.addEventListener('DOMContentLoaded', () => {
             loginError.classList.remove('hidden');
         }
     });
-    
+
     logoutBtn.addEventListener('click', () => {
         sessionStorage.removeItem('currentUser');
         location.reload();
     });
 
+    // --- UI DISPLAY ---
     function showGameView() {
         loginView.classList.add('hidden');
         gameView.classList.remove('hidden');
@@ -76,13 +81,12 @@ document.addEventListener('DOMContentLoaded', () => {
         playerCoinsDisplay.textContent = currentUser.coins;
         renderWonItems();
     }
-    
+
     function renderWonItems() {
         wonItemsList.innerHTML = '';
         if (currentUser.wonItems && currentUser.wonItems.length > 0) {
             currentUser.wonItems.forEach(item => {
                 const li = document.createElement('li');
-                // *** TEXT CHANGED HERE ***
                 li.textContent = `${item.name} (Bid: ${item.winningBid} SquidBits)`;
                 wonItemsList.appendChild(li);
             });
@@ -93,6 +97,49 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // --- SOCKET.IO EVENT LISTENERS ---
+    socket.on('event:shapeQuestStarted', (data) => {
+        if (currentUser && !currentUser.isEliminated) {
+            const myGender = currentUser.isGirl ? 'girls' : 'boys';
+            if (data.target === 'all' || data.target === myGender) {
+                shapeQuestContent.innerHTML = `
+                    <h1>Choose Your Shape!</h1>
+                    <div id="shape-quest-timer">15</div>
+                    <div class="shape-options">
+                        <button class="shape-btn" data-shape="circle">○</button>
+                        <button class="shape-btn" data-shape="triangle">△</button>
+                        <button class="shape-btn" data-shape="square">□</button>
+                    </div>
+                    <p>You must choose before the timer runs out!</p>`;
+                
+                document.querySelectorAll('.shape-btn').forEach(btn => {
+                    btn.addEventListener('click', handleShapeClick);
+                });
+                
+                shapeQuestOverlay.classList.remove('hidden');
+                let timeLeft = 15;
+                const timerDisplay = document.getElementById('shape-quest-timer');
+                if (timerDisplay) timerDisplay.textContent = timeLeft;
+                
+                if (shapeQuestTimerInterval) clearInterval(shapeQuestTimerInterval);
+                shapeQuestTimerInterval = setInterval(() => {
+                    timeLeft--;
+                    if (timerDisplay) timerDisplay.textContent = timeLeft;
+                    if (timeLeft <= 0) {
+                        clearInterval(shapeQuestTimerInterval);
+                        shapeQuestOverlay.classList.add('hidden');
+                    }
+                }, 1000);
+            }
+        }
+    });
+    
+    function handleShapeClick(event) {
+        const shape = event.target.dataset.shape;
+        socket.emit('student:shapeSelected', { sapId: currentUser.sapId, shape });
+        shapeQuestContent.innerHTML = `<h1>You chose: ${event.target.textContent}</h1><p>Waiting for results...</p>`;
+    }
+    
     socket.on('event:playersEliminated', (data) => {
         if (currentUser && data.numbers.includes(currentUser.assignedNumber)) {
             eliminatedOverlay.classList.remove('hidden');
@@ -100,72 +147,67 @@ document.addEventListener('DOMContentLoaded', () => {
             sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
         }
     });
-
-    socket.on('event:playerUnEliminated', (data) => {
-        if (currentUser && data.sapId === currentUser.sapId) {
-            eliminatedOverlay.classList.add('hidden');
-            currentUser.isEliminated = false;
-            sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
-        }
+    
+    socket.on('event:playerUnEliminated', (data) => { 
+        if (currentUser && data.sapId === currentUser.sapId) { 
+            eliminatedOverlay.classList.add('hidden'); 
+            currentUser.isEliminated = false; 
+            sessionStorage.setItem('currentUser', JSON.stringify(currentUser)); 
+        } 
     });
-
-    socket.on('event:coinsUpdated', (data) => {
-        if (currentUser && data.sapId === currentUser.sapId) {
-            playerCoinsDisplay.textContent = data.newBalance;
+    
+    socket.on('event:coinsUpdated', (data) => { 
+        if (currentUser && data.sapId === currentUser.sapId) { 
+            playerCoinsDisplay.textContent = data.newBalance; 
             currentUser.coins = data.newBalance; 
-            sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
-        }
+            sessionStorage.setItem('currentUser', JSON.stringify(currentUser)); 
+        } 
     });
-
-    socket.on('event:auctionEnded', (data) => {
-        // *** TEXT CHANGED HERE ***
-        auctionZone.innerHTML = `<h3>Auction for ${data.itemName} ENDED!</h3><p>Winner: ${data.winnerSapId} with a bid of ${data.finalBid} SquidBits.</p>`;
-        if (currentUser && data.winnerSapId === currentUser.sapId) {
-            currentUser.wonItems.push({ name: data.itemName, winningBid: data.finalBid });
-            renderWonItems();
-            sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
-        }
+    
+    socket.on('event:auctionEnded', (data) => { 
+        auctionZone.innerHTML = `<h3>Auction for ${data.itemName} ENDED!</h3><p>Winner: ${data.winnerSapId} with a bid of ${data.finalBid} SquidBits.</p>`; 
+        if (currentUser && data.winnerSapId === currentUser.sapId) { 
+            currentUser.wonItems.push({ name: data.itemName, winningBid: data.finalBid }); 
+            renderWonItems(); 
+            sessionStorage.setItem('currentUser', JSON.stringify(currentUser)); 
+        } 
     });
-
-    socket.on('event:auctionStarted', (data) => {
+    
+    socket.on('event:auctionStarted', (data) => { 
         auctionZone.innerHTML = `
             <h3>NOW AUCTIONING: ${data.itemName}</h3>
             <p>Current High Bid: <span id="high-bid">0</span> SquidBits</p>
             <div class="form-group" style="margin-top: 10px;">
                 <input type="number" id="bid-amount" placeholder="Your bid amount">
             </div>
-            <button id="place-bid-btn">Place Bid</button>
-        `;
-        document.getElementById('place-bid-btn').addEventListener('click', placeBid);
+            <button id="place-bid-btn">Place Bid</button>`; 
+        document.getElementById('place-bid-btn').addEventListener('click', placeBid); 
+    });
+    
+    socket.on('event:newBid', (data) => { 
+        const highBidDisplay = document.getElementById('high-bid'); 
+        if (highBidDisplay) highBidDisplay.textContent = data.bidAmount; 
     });
 
-    socket.on('event:newBid', (data) => {
-        const highBidDisplay = document.getElementById('high-bid');
-        if (highBidDisplay) {
-            highBidDisplay.textContent = data.bidAmount;
-        }
-    });
-
-    function placeBid() {
-        const bidAmountInput = document.getElementById('bid-amount');
-        const bidAmount = parseInt(bidAmountInput.value);
-
-        if (isNaN(bidAmount) || bidAmount <= 0) {
-            alert('Please enter a valid bid amount.');
-            return;
-        }
-        if (bidAmount > currentUser.coins) {
-            // *** TEXT CHANGED HERE ***
-            alert("You don't have enough SquidBits for this bid.");
-            return;
-        }
-        socket.emit('student:placeBid', {
-            sapId: currentUser.sapId,
-            name: currentUser.name,
-            bidAmount: bidAmount
-        });
-        bidAmountInput.value = '';
+    function placeBid() { 
+        const bidAmountInput = document.getElementById('bid-amount'); 
+        const bidAmount = parseInt(bidAmountInput.value); 
+        if (isNaN(bidAmount) || bidAmount <= 0) { 
+            alert('Please enter a valid bid amount.'); 
+            return; 
+        } 
+        if (bidAmount > currentUser.coins) { 
+            alert("You don't have enough SquidBits for this bid."); 
+            return; 
+        } 
+        socket.emit('student:placeBid', { 
+            sapId: currentUser.sapId, 
+            name: currentUser.name, 
+            bidAmount: bidAmount 
+        }); 
+        bidAmountInput.value = ''; 
     }
     
+    // Initial check on page load
     checkSession();
 });

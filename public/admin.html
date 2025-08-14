@@ -10,58 +10,46 @@
     <div class="container" id="admin-dashboard">
         <button id="admin-logout-btn">Logout</button>
         <h1>Admin Control Panel</h1>
+
+        <div class="admin-panel stats-panel">
+            <h2>Live Player Stats</h2>
+            <div class="stats-container">
+                <div class="stat-box"><h3>Active Players</h3><span id="active-total">0</span></div>
+                <div class="stat-box"><h3>Active Boys</h3><span id="active-boys">0</span></div>
+                <div class="stat-box"><h3>Active Girls</h3><span id="active-girls">0</span></div>
+            </div>
+        </div>
         
         <div class="admin-panel">
-            <h2>Bulk Register Students (CSV)</h2>
-            <p style="font-size: 0.8rem; margin-bottom: 10px;">CSV format: Column A: Name, B: SAP ID, C: Password, D: Gender (boy/girl)</p>
-            <form id="upload-form">
-                <div class="form-group">
-                    <input type="file" id="csv-file" name="csvFile" accept=".csv" required>
+            <h2>Shape Quest</h2>
+            <div class="form-group" style="text-align: center; margin-bottom: 15px;">
+                <label style="margin-bottom: 10px;">Target Group:</label>
+                <div class="radio-group">
+                    <input type="radio" id="target-all" name="quest-target" value="all" checked>
+                    <label for="target-all">All</label>
+                    <input type="radio" id="target-boys" name="quest-target" value="boys">
+                    <label for="target-boys">Boys</label>
+                    <input type="radio" id="target-girls" name="quest-target" value="girls">
+                    <label for="target-girls">Girls</label>
                 </div>
-                <button type="submit">Upload and Register</button>
-            </form>
-            <p id="upload-status" class="error-message hidden" style="color: var(--squid-teal);"></p>
+            </div>
+            
+            <p id="quest-status" style="font-weight: bold; margin-bottom: 15px; min-height: 20px;">Status: Idle</p>
+            <button id="start-quest-btn">Start 15s Shape Quest</button>
+            <div style="margin-top: 15px; display: flex; justify-content: space-around;">
+                <button class="eliminate-shape-btn" data-shape="circle">Eliminate ○</button>
+                <button class="eliminate-shape-btn" data-shape="triangle">Eliminate △</button>
+                <button class="eliminate-shape-btn" data-shape="square">Eliminate □</button>
+            </div>
         </div>
 
-        <div class="admin-panel">
-            <h2>Mass Elimination</h2>
-            <div class="form-group">
-                <label for="eliminate-numbers">Enter Player Numbers (comma-separated)</label>
-                <input type="text" id="eliminate-numbers" placeholder="e.g., 4, 15, 23, 112">
-            </div>
-            <button id="eliminate-btn">Eliminate Players</button>
-        </div>
-
-        <div class="admin-panel">
-            <h2>SquidBits Management</h2>
-            <div class="form-group">
-                <label for="coin-sapid">Student SAP ID</label>
-                <input type="text" id="coin-sapid" placeholder="Target SAP ID">
-            </div>
-            <div class="form-group">
-                <label for="coin-amount">Amount (use negative to remove)</label>
-                <input type="number" id="coin-amount" placeholder="-50 or 100">
-            </div>
-            <button id="update-coins-btn">Update SquidBits</button>
-        </div>
-        
-        <div class="admin-panel">
-            <h2>Auction Control</h2>
-            <div class="form-group">
-                <label for="item-name">Item Name</label>
-                <input type="text" id="item-name" placeholder="Mystery Box">
-            </div>
-            <button id="start-auction-btn">Start Auction</button>
-            <button id="end-auction-btn" style="background-color: var(--squid-teal); margin-top: 10px;">End Auction</button>
-        </div>
-
-        <div class="admin-panel">
-            <h2>Live Player Roster</h2>
-            <ul id="user-list">
-                </ul>
-        </div>
+        <div class="admin-panel"><h2>Bulk Register Students (CSV)</h2><p style="font-size: 0.8rem; margin-bottom: 10px;">CSV format: Column A: Name, B: SAP ID, C: Password, D: Gender (boy/girl)</p><form id="upload-form"><div class="form-group"><input type="file" id="csv-file" name="csvFile" accept=".csv" required></div><button type="submit">Upload and Register</button></form><p id="upload-status" class="error-message hidden" style="color: var(--squid-teal);"></p></div>
+        <div class="admin-panel"><h2>Mass Elimination</h2><div class="form-group"><label for="eliminate-numbers">Enter Player Numbers (comma-separated)</label><input type="text" id="eliminate-numbers" placeholder="e.g., 4, 15, 23, 112"></div><button id="eliminate-btn">Eliminate Players</button></div>
+        <div class="admin-panel"><h2>SquidBits Management</h2><div class="form-group"><label for="coin-sapid">Student SAP ID</label><input type="text" id="coin-sapid" placeholder="Target SAP ID"></div><div class="form-group"><label for="coin-amount">Amount (use negative to remove)</label><input type="number" id="coin-amount" placeholder="-50 or 100"></div><button id="update-coins-btn">Update SquidBits</button></div>
+        <div class="admin-panel"><h2>Auction Control</h2><div class="form-group"><label for="item-name">Item Name</label><input type="text" id="item-name" placeholder="Mystery Box"></div><button id="start-auction-btn">Start Auction</button><button id="end-auction-btn" style="background-color: var(--squid-teal); margin-top: 10px;">End Auction</button></div>
+        <div class="admin-panel"><h2>Live Player Roster</h2><ul id="user-list"></ul></div>
     </div>
-
+    
     <footer>
         <p>&copy; 2025 Aarush Chaudhary, STME NMIMS Hyderabad, All Rights Reserved</p>
     </footer>
