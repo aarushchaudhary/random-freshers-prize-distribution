@@ -20,6 +20,7 @@ body {
     background-color: var(--squid-black);
     color: var(--squid-white);
     display: flex;
+    flex-direction: column; /* <-- ADD THIS LINE */
     justify-content: center;
     align-items: center;
     min-height: 100vh;
@@ -286,4 +287,14 @@ button:hover {
 .un-eliminate-btn:hover {
     background-color: var(--squid-white);
     color: var(--squid-teal);
+}
+
+/* Footer Styles */
+footer {
+    width: 100%;
+    text-align: center;
+    padding: 20px;
+    margin-top: 40px;
+    color: rgba(255, 255, 255, 0.5); /* Muted white color */
+    font-size: 0.8rem;
 }

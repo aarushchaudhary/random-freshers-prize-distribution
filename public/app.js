@@ -22,7 +22,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let currentUser = null;
 
-    // Check for a saved user session when the page loads
     function checkSession() {
         const savedUser = sessionStorage.getItem('currentUser');
         if (savedUser) {
@@ -35,7 +34,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // LOGIN LOGIC
     loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const sapId = sapIdInput.value;
@@ -65,13 +63,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
-    // LOGOUT LOGIC
     logoutBtn.addEventListener('click', () => {
         sessionStorage.removeItem('currentUser');
         location.reload();
     });
 
-    // UI DISPLAY FUNCTIONS
     function showGameView() {
         loginView.classList.add('hidden');
         gameView.classList.remove('hidden');
@@ -86,7 +82,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentUser.wonItems && currentUser.wonItems.length > 0) {
             currentUser.wonItems.forEach(item => {
                 const li = document.createElement('li');
-                li.textContent = `${item.name} (Bid: ${item.winningBid} coins)`;
+                // *** TEXT CHANGED HERE ***
+                li.textContent = `${item.name} (Bid: ${item.winningBid} SquidBits)`;
                 wonItemsList.appendChild(li);
             });
         } else {
@@ -96,7 +93,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // SOCKET.IO EVENT LISTENERS
     socket.on('event:playersEliminated', (data) => {
         if (currentUser && data.numbers.includes(currentUser.assignedNumber)) {
             eliminatedOverlay.classList.remove('hidden');
@@ -122,7 +118,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     socket.on('event:auctionEnded', (data) => {
-        auctionZone.innerHTML = `<h3>Auction for ${data.itemName} ENDED!</h3><p>Winner: ${data.winnerSapId} with a bid of ${data.finalBid} coins.</p>`;
+        // *** TEXT CHANGED HERE ***
+        auctionZone.innerHTML = `<h3>Auction for ${data.itemName} ENDED!</h3><p>Winner: ${data.winnerSapId} with a bid of ${data.finalBid} SquidBits.</p>`;
         if (currentUser && data.winnerSapId === currentUser.sapId) {
             currentUser.wonItems.push({ name: data.itemName, winningBid: data.finalBid });
             renderWonItems();
@@ -133,7 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
     socket.on('event:auctionStarted', (data) => {
         auctionZone.innerHTML = `
             <h3>NOW AUCTIONING: ${data.itemName}</h3>
-            <p>Current High Bid: <span id="high-bid">0</span> coins</p>
+            <p>Current High Bid: <span id="high-bid">0</span> SquidBits</p>
             <div class="form-group" style="margin-top: 10px;">
                 <input type="number" id="bid-amount" placeholder="Your bid amount">
             </div>
@@ -152,12 +149,14 @@ document.addEventListener('DOMContentLoaded', () => {
     function placeBid() {
         const bidAmountInput = document.getElementById('bid-amount');
         const bidAmount = parseInt(bidAmountInput.value);
+
         if (isNaN(bidAmount) || bidAmount <= 0) {
             alert('Please enter a valid bid amount.');
             return;
         }
         if (bidAmount > currentUser.coins) {
-            alert("You don't have enough coins for this bid.");
+            // *** TEXT CHANGED HERE ***
+            alert("You don't have enough SquidBits for this bid.");
             return;
         }
         socket.emit('student:placeBid', {

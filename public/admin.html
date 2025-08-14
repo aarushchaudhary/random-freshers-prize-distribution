@@ -9,8 +9,19 @@
 <body>
     <div class="container" id="admin-dashboard">
         <button id="admin-logout-btn">Logout</button>
-        
         <h1>Admin Control Panel</h1>
+        
+        <div class="admin-panel">
+            <h2>Bulk Register Students (CSV)</h2>
+            <p style="font-size: 0.8rem; margin-bottom: 10px;">CSV format: Column A: Name, B: SAP ID, C: Password, D: Gender (boy/girl)</p>
+            <form id="upload-form">
+                <div class="form-group">
+                    <input type="file" id="csv-file" name="csvFile" accept=".csv" required>
+                </div>
+                <button type="submit">Upload and Register</button>
+            </form>
+            <p id="upload-status" class="error-message hidden" style="color: var(--squid-teal);"></p>
+        </div>
 
         <div class="admin-panel">
             <h2>Mass Elimination</h2>
@@ -22,7 +33,7 @@
         </div>
 
         <div class="admin-panel">
-            <h2>Coin Management</h2>
+            <h2>SquidBits Management</h2>
             <div class="form-group">
                 <label for="coin-sapid">Student SAP ID</label>
                 <input type="text" id="coin-sapid" placeholder="Target SAP ID">
@@ -31,7 +42,7 @@
                 <label for="coin-amount">Amount (use negative to remove)</label>
                 <input type="number" id="coin-amount" placeholder="-50 or 100">
             </div>
-            <button id="update-coins-btn">Update Coins</button>
+            <button id="update-coins-btn">Update SquidBits</button>
         </div>
         
         <div class="admin-panel">
@@ -50,6 +61,10 @@
                 </ul>
         </div>
     </div>
+
+    <footer>
+        <p>&copy; 2025 Aarush Chaudhary, STME NMIMS Hyderabad, All Rights Reserved</p>
+    </footer>
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="admin.js"></script>
