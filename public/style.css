@@ -395,3 +395,54 @@ footer {
     color: var(--squid-white);
     border-color: var(--squid-pink);
 }
+
+/* Auction Log Display Styles */
+.auction-log {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: var(--squid-black);
+    border: 1px solid var(--squid-teal);
+    border-radius: 5px;
+    height: 150px;
+    overflow-y: auto; /* Adds a scrollbar if content overflows */
+    text-align: left;
+}
+
+.auction-log p {
+    margin-bottom: 5px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid var(--squid-grey);
+}
+
+.auction-log p:last-child {
+    border-bottom: none;
+}
+
+.auction-log .winner {
+    color: var(--squid-yellow);
+    font-weight: bold;
+    font-size: 1.2rem;
+    text-align: center;
+}
+
+/* Pagination Controls Styles */
+.pagination-controls {
+    margin-top: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.pagination-controls button {
+    width: 100px;
+    padding: 8px;
+    font-size: 0.9rem;
+    background-color: var(--squid-teal);
+}
+.pagination-controls button:disabled {
+    background-color: var(--squid-grey);
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+.pagination-controls span {
+    font-weight: bold;
+}

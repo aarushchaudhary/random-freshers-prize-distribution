@@ -2,8 +2,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const socket = io();
 
     // Elements
-    const logoutBtn = document.getElementById('admin-logout-btn');
     const userList = document.getElementById('user-list');
+    const logoutBtn = document.getElementById('admin-logout-btn');
     const activeTotalDisplay = document.getElementById('active-total');
     const activeBoysDisplay = document.getElementById('active-boys');
     const activeGirlsDisplay = document.getElementById('active-girls');
@@ -21,30 +21,48 @@ document.addEventListener('DOMContentLoaded', () => {
     const itemNameInput = document.getElementById('item-name');
     const startAuctionBtn = document.getElementById('start-auction-btn');
     const endAuctionBtn = document.getElementById('end-auction-btn');
-    
+    const auctionLogDisplay = document.getElementById('auction-log-display');
+
+    // Pagination Elements
+    const prevPageBtn = document.getElementById('prev-page-btn');
+    const nextPageBtn = document.getElementById('next-page-btn');
+    const currentPageSpan = document.getElementById('current-page');
+    const totalPagesSpan = document.getElementById('total-pages');
+
+    // State Variables
+    let allUsers = [];
+    let currentPage = 1;
+    const itemsPerPage = 20;
     let currentHighBid = { sapId: null, name: null, bidAmount: 0 };
     let questTimerInterval;
 
     // --- HELPER FUNCTIONS ---
-    function updatePlayerStats(users) {
-        const activePlayers = users.filter(user => !user.isEliminated);
-        const activeBoys = activePlayers.filter(user => !user.isEliminated && !user.isGirl).length;
-        const activeGirls = activePlayers.filter(user => user.isEliminated === false && user.isGirl === true).length;
-        
-        activeTotalDisplay.textContent = activePlayers.length;
-        activeBoysDisplay.textContent = activeBoys;
-        activeGirlsDisplay.textContent = activeGirls;
-    }
-
     async function fetchAndRenderUsers() {
         try {
             const response = await fetch('/api/users');
             const data = await response.json();
             if (data.success) {
-                renderUserList(data.users);
-                updatePlayerStats(data.users);
+                allUsers = data.users;
+                currentPage = 1;
+                displayPage();
+                updatePlayerStats(allUsers);
             }
         } catch (error) { console.error('Failed to fetch users:', error); }
+    }
+
+    function displayPage() {
+        const totalPages = Math.ceil(allUsers.length / itemsPerPage);
+        totalPagesSpan.textContent = totalPages > 0 ? totalPages : 1;
+        currentPageSpan.textContent = currentPage;
+
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        const pageUsers = allUsers.slice(startIndex, endIndex);
+        
+        renderUserList(pageUsers);
+
+        prevPageBtn.disabled = currentPage === 1;
+        nextPageBtn.disabled = currentPage >= totalPages;
     }
 
     function renderUserList(users) {
@@ -65,8 +83,33 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function updatePlayerStats(users) {
+        const activePlayers = users.filter(user => !user.isEliminated);
+        const activeBoys = activePlayers.filter(user => !user.isEliminated && !user.isGirl).length;
+        const activeGirls = activePlayers.filter(user => !user.isEliminated && user.isGirl).length;
+        
+        activeTotalDisplay.textContent = activePlayers.length;
+        activeBoysDisplay.textContent = activeBoys;
+        activeGirlsDisplay.textContent = activeGirls;
+    }
+
     // --- EVENT LISTENERS ---
     logoutBtn.addEventListener('click', () => { window.location.href = 'index.html'; });
+
+    prevPageBtn.addEventListener('click', () => {
+        if (currentPage > 1) {
+            currentPage--;
+            displayPage();
+        }
+    });
+
+    nextPageBtn.addEventListener('click', () => {
+        const totalPages = Math.ceil(allUsers.length / itemsPerPage);
+        if (currentPage < totalPages) {
+            currentPage++;
+            displayPage();
+        }
+    });
 
     startQuestBtn.addEventListener('click', () => {
         if (questTimerInterval) return;
@@ -142,6 +185,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (itemName) {
             socket.emit('admin:startAuction', { itemName });
             currentHighBid = { sapId: null, name: null, bidAmount: 0 };
+            auctionLogDisplay.innerHTML = `<p>Auction started for: <strong>${itemName}</strong></p>`;
         }
     });
 
@@ -156,8 +200,25 @@ document.addEventListener('DOMContentLoaded', () => {
     socket.on('connect', () => { console.log('Admin connected to server.'); fetchAndRenderUsers(); });
     socket.on('event:playersEliminated', () => fetchAndRenderUsers());
     socket.on('event:playerUnEliminated', () => fetchAndRenderUsers());
-    socket.on('event:coinsUpdated', (data) => { const userLi = userList.querySelector(`li[data-sapid="${data.sapId}"] .user-coins`); if (userLi) userLi.textContent = `${data.newBalance} SquidBits`; fetchAndRenderUsers(); });
-    socket.on('event:newBid', (data) => { if (data.bidAmount > currentHighBid.bidAmount) currentHighBid = data; });
+    socket.on('event:coinsUpdated', (data) => { fetchAndRenderUsers(); });
+    
+    socket.on('event:newBid', (data) => {
+        if (data.bidAmount > currentHighBid.bidAmount) {
+            currentHighBid = data;
+        }
+        const logEntry = document.createElement('p');
+        logEntry.innerHTML = `Bid: <strong>${data.bidAmount}</strong> by ${data.name} (${data.sapId})`;
+        auctionLogDisplay.appendChild(logEntry);
+        auctionLogDisplay.scrollTop = auctionLogDisplay.scrollHeight;
+    });
+    
+    socket.on('event:auctionEnded', (data) => {
+        const winnerEntry = document.createElement('p');
+        winnerEntry.className = 'winner';
+        winnerEntry.innerHTML = `SOLD to <strong>${data.winnerSapId}</strong> for <strong>${data.finalBid}</strong> SquidBits!`;
+        auctionLogDisplay.appendChild(winnerEntry);
+        auctionLogDisplay.scrollTop = auctionLogDisplay.scrollHeight;
+    });
     
     // --- INITIAL LOAD ---
     fetchAndRenderUsers();
