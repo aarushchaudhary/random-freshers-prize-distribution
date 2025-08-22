@@ -10,7 +10,7 @@
 
 [[redirects]]
   from = "/socket.io/*"
-  to = "https://prarambh.netlify.app/.netlify/functions/api/socket.io/:splat"
+  to = "https://prarambh2025.netlify.app/.netlify/functions/api/socket.io/:splat"
   status = 200
   force = true
 
