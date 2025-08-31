@@ -7,11 +7,11 @@ const { Server } = require('socket.io');
 const bcrypt = require('bcryptjs');
 const cors = require('cors');
 const path = require('path');
-const crypto = require('crypto'); // Kept for generating secure tokens
+const crypto = require('crypto');
 const multer = require('multer');
 const csv = require('csv-parser');
 const { Readable } = require('stream');
-const serverless = require('serverless-http'); // ADDED: Required for Netlify
+const serverless = require('serverless-http');
 
 // --- Initial Setup & Middleware ---
 const app = express();
@@ -19,30 +19,30 @@ const server = http.createServer(app);
 app.use(cors());
 const io = new Server(server, { cors: { origin: "*", methods: ["GET", "POST"] } });
 app.use(express.json());
-app.use(express.static(path.join(__dirname, '../public')));
+app.use(express.static(path.join(__dirname, '../public'))); 
 const upload = multer({ storage: multer.memoryStorage() });
 
-// --- Database Connection & Schema ---
+// --- SERVERLESS DATABASE CONNECTION PATTERN ---
+let conn = null;
 const MONGO_URI = process.env.MONGO_URI;
 
-// NEW, more robust connection logic
-mongoose.connect(MONGO_URI)
-  .then(() => {
-    console.log('✅ Successfully connected to MongoDB Atlas.');
-    console.log(`✅ Connected to database: '${mongoose.connection.db.databaseName}'`);
-  })
-  .catch(err => {
-    console.error('Initial Database connection error:', err);
-    // Exit the process if the initial connection fails
-    process.exit(1); 
-  });
+const connectToDatabase = async () => {
+  if (conn == null) {
+    console.log('Creating new database connection...');
+    conn = mongoose.connect(MONGO_URI, {
+      serverSelectionTimeoutMS: 5000 
+    }).then(() => mongoose);
 
-// To handle errors after initial connection was established
-mongoose.connection.on('error', err => {
-  console.error('MongoDB runtime error:', err);
-});
+    // `await` the connection promise to ensure it's established
+    await conn;
+    console.log('✅ New database connection established.');
+  } else {
+    console.log('Reusing existing database connection.');
+  }
+  return conn;
+};
 
-// UNCHANGED: Schema with session fields is kept
+// --- Schema & Model Definition ---
 const userSchema = new mongoose.Schema({
     name: { type: String, required: true },
     sapId: { type: String, required: true, unique: true, trim: true },
@@ -53,17 +53,20 @@ const userSchema = new mongoose.Schema({
     coins: { type: Number, default: 1000 },
     isEliminated: { type: Boolean, default: false },
     wonItems: [{ name: String, winningBid: Number }],
-    sessionToken: { type: String }, // Kept for session management
-    socketId: { type: String }       // Kept for session management
+    sessionToken: { type: String },
+    socketId: { type: String }
 });
-const User = mongoose.model('User', userSchema);
+// Ensure the model is not re-compiled if it already exists
+const User = mongoose.models.User || mongoose.model('User', userSchema);
 
 // --- API Endpoints ---
 const router = express.Router();
 
-// UNCHANGED: Login route with session logic is kept
 router.post('/login', async (req, res) => {
     try {
+        await connectToDatabase(); 
+        console.log('Login attempt after DB connection.');
+        
         const { sapId, password } = req.body;
         const user = await User.findOne({ sapId });
 
@@ -74,24 +77,66 @@ router.post('/login', async (req, res) => {
 
         if (user.role === 'student' && user.isEliminated) return res.status(403).json({ success: false, message: 'You have been eliminated.' });
 
-        // --- SESSION LOGIC ---
         if (user.socketId) {
             io.to(user.socketId).emit('forceDisconnect');
         }
 
         const sessionToken = crypto.randomBytes(32).toString('hex');
         user.sessionToken = sessionToken;
-        user.socketId = null; // Clear old socket ID
+        user.socketId = null;
         await user.save();
         
         res.json({ success: true, user, token: sessionToken });
 
     } catch (error) {
+        console.error('Error during login:', error);
         res.status(500).json({ success: false, message: 'Server error during login.' });
     }
 });
-router.get('/users', async (req, res) => { try { const users = await User.find({ role: 'student' }).sort({ assignedNumber: 1 }); res.json({ success: true, users }); } catch (error) { res.status(500).json({ success: false, message: 'Could not fetch users.' }); } });
-router.post('/upload-students', upload.single('csvFile'), async (req, res) => { if (!req.file) { return res.status(400).json({ message: 'No file uploaded.' }); } const newUsers = []; const stream = Readable.from(req.file.buffer); try { const existingUsers = await User.find({}, 'assignedNumber sapId'); const existingNumbers = new Set(existingUsers.map(u => u.assignedNumber)); const existingSapIds = new Set(existingUsers.map(u => u.sapId)); const parser = stream.pipe(csv({ headers: ['name', 'sapId', 'password', 'gender'] })); for await (const row of parser) { if (!row.name || !row.sapId || !row.password || !row.gender) continue; if (existingSapIds.has(row.sapId)) continue; const salt = await bcrypt.genSalt(10); const hashedPassword = await bcrypt.hash(row.password, salt); let assignedNumber; do { assignedNumber = Math.floor(Math.random() * 350) + 1; } while (existingNumbers.has(assignedNumber)); existingNumbers.add(assignedNumber); newUsers.push({ name: row.name, sapId: row.sapId, password: hashedPassword, isGirl: row.gender.toLowerCase() === 'girl', assignedNumber: assignedNumber, }); } if (newUsers.length > 0) { await User.insertMany(newUsers); } res.status(200).json({ message: `Successfully registered ${newUsers.length} new students.` }); } catch (error) { console.error('Error processing CSV:', error); res.status(500).json({ message: 'Failed to process CSV file.' }); } });
+
+router.get('/users', async (req, res) => { 
+    try { 
+        await connectToDatabase();
+        const users = await User.find({ role: 'student' }).sort({ assignedNumber: 1 }); 
+        res.json({ success: true, users }); 
+    } catch (error) { 
+        console.error('Error fetching users:', error);
+        res.status(500).json({ success: false, message: 'Could not fetch users.' }); 
+    } 
+});
+
+router.post('/upload-students', upload.single('csvFile'), async (req, res) => { 
+    if (!req.file) { return res.status(400).json({ message: 'No file uploaded.' }); } 
+    const newUsers = []; 
+    const stream = Readable.from(req.file.buffer); 
+    try { 
+        await connectToDatabase();
+        const existingUsers = await User.find({}, 'assignedNumber sapId'); 
+        const existingNumbers = new Set(existingUsers.map(u => u.assignedNumber)); 
+        const existingSapIds = new Set(existingUsers.map(u => u.sapId)); 
+        const parser = stream.pipe(csv({ headers: ['name', 'sapId', 'password', 'gender'] })); 
+        for await (const row of parser) { 
+            if (!row.name || !row.sapId || !row.password || !row.gender) continue; 
+            if (existingSapIds.has(row.sapId)) continue; 
+            const salt = await bcrypt.genSalt(10); 
+            const hashedPassword = await bcrypt.hash(row.password, salt); 
+            let assignedNumber; 
+            do { 
+                assignedNumber = Math.floor(Math.random() * 350) + 1; 
+            } while (existingNumbers.has(assignedNumber)); 
+            existingNumbers.add(assignedNumber); 
+            newUsers.push({ name: row.name, sapId: row.sapId, password: hashedPassword, isGirl: row.gender.toLowerCase() === 'girl', assignedNumber: assignedNumber, }); 
+        } 
+        if (newUsers.length > 0) { 
+            await User.insertMany(newUsers); 
+        } 
+        res.status(200).json({ message: `Successfully registered ${newUsers.length} new students.` }); 
+    } catch (error) { 
+        console.error('Error processing CSV:', error); 
+        res.status(500).json({ message: 'Failed to process CSV file.' }); 
+    } 
+});
+
 app.use('/api', router);
 
 // --- Game State ---
@@ -101,9 +146,9 @@ let shapeQuestState = { active: false, target: 'all', playerChoices: new Map() }
 io.on('connection', (socket) => {
     console.log(`Socket connected: ${socket.id}`);
 
-    // UNCHANGED: Authentication handler is kept
     socket.on('authenticate', async (data) => {
         try {
+            await connectToDatabase();
             const user = await User.findOne({ sapId: data.sapId, sessionToken: data.token });
             if (user) {
                 user.socketId = socket.id;
@@ -117,27 +162,29 @@ io.on('connection', (socket) => {
         }
     });
 
-    // ... all other socket logic remains the same ...
     socket.on('admin:startShapeQuest', (data) => { shapeQuestState.active = true; shapeQuestState.target = data.target || 'all'; shapeQuestState.playerChoices.clear(); io.emit('event:shapeQuestStarted', { target: shapeQuestState.target }); console.log(`Shape Quest started for: ${shapeQuestState.target}`); });
     socket.on('student:shapeSelected', (data) => { if (shapeQuestState.active) { shapeQuestState.playerChoices.set(data.sapId, data.shape); } });
-    socket.on('admin:eliminateShape', async (data) => { if (!shapeQuestState.active) return; const losingShape = data.shape; const filter = { isEliminated: false, role: 'student' }; if (shapeQuestState.target === 'boys') filter.isGirl = false; else if (shapeQuestState.target === 'girls') filter.isGirl = true; const targetPlayers = await User.find(filter, 'sapId assignedNumber'); const playersToEliminate = new Set(); for (const player of targetPlayers) { const choice = shapeQuestState.playerChoices.get(player.sapId); if (choice === losingShape || !choice) { playersToEliminate.add(player.assignedNumber); } } const eliminatedNumbers = Array.from(playersToEliminate); if (eliminatedNumbers.length > 0) { await User.updateMany( { assignedNumber: { $in: eliminatedNumbers } }, { $set: { isEliminated: true } } ); io.emit('event:playersEliminated', { numbers: eliminatedNumbers }); } shapeQuestState.active = false; });
-    socket.on('admin:eliminateByNumber', async (data) => { const numbers = data.numbers.map(n => parseInt(n)).filter(n => !isNaN(n)); if (numbers.length > 0) { await User.updateMany( { assignedNumber: { $in: numbers } }, { $set: { isEliminated: true } } ); io.emit('event:playersEliminated', { numbers }); } });
-    socket.on('admin:resetAllEliminations', async () => { try { await User.updateMany({ role: 'student' }, { $set: { isEliminated: false } }); io.emit('event:allPlayersReset'); } catch (error) { console.error('Error resetting eliminations:', error); } });
-    socket.on('admin:unEliminatePlayer', async (data) => { const { sapId } = data; if (!sapId) return; try { const updatedUser = await User.findOneAndUpdate( { sapId }, { $set: { isEliminated: false } }, { new: true } ); if (updatedUser) io.emit('event:playerUnEliminated', { sapId: updatedUser.sapId }); } catch (error) { console.error('Error un-eliminating player:', error); } });
-    socket.on('admin:updateCoins', async (data) => { const { sapId, changeAmount } = data; if (!sapId || isNaN(changeAmount)) return; try { const updatedUser = await User.findOneAndUpdate({ sapId }, { $inc: { coins: parseInt(changeAmount) } }, { new: true }); if (updatedUser) io.emit('event:coinsUpdated', { sapId, newBalance: updatedUser.coins }); } catch (error) { console.error('Error updating coins in database:', error); } });
-    socket.on('admin:endAuction', async (data) => { const { winnerSapId, itemName, finalBid } = data; if (!winnerSapId || !itemName || isNaN(finalBid)) return console.error('Invalid data for auction end:', data); try { const updatedUser = await User.findOneAndUpdate( { sapId: winnerSapId }, { $inc: { coins: -finalBid }, $push: { wonItems: { name: itemName, winningBid: finalBid } } }, { new: true } ); if (updatedUser) { io.emit('event:auctionEnded', { winnerSapId, itemName, finalBid }); io.emit('event:coinsUpdated', { sapId: updatedUser.sapId, newBalance: updatedUser.coins }); } } catch (error) { console.error('Error processing auction winner:', error); } });
+    socket.on('admin:eliminateShape', async (data) => { if (!shapeQuestState.active) return; const losingShape = data.shape; const filter = { isEliminated: false, role: 'student' }; if (shapeQuestState.target === 'boys') filter.isGirl = false; else if (shapeQuestState.target === 'girls') filter.isGirl = true; await connectToDatabase(); const targetPlayers = await User.find(filter, 'sapId assignedNumber'); const playersToEliminate = new Set(); for (const player of targetPlayers) { const choice = shapeQuestState.playerChoices.get(player.sapId); if (choice === losingShape || !choice) { playersToEliminate.add(player.assignedNumber); } } const eliminatedNumbers = Array.from(playersToEliminate); if (eliminatedNumbers.length > 0) { await User.updateMany( { assignedNumber: { $in: eliminatedNumbers } }, { $set: { isEliminated: true } } ); io.emit('event:playersEliminated', { numbers: eliminatedNumbers }); } shapeQuestState.active = false; });
+    socket.on('admin:eliminateByNumber', async (data) => { const numbers = data.numbers.map(n => parseInt(n)).filter(n => !isNaN(n)); if (numbers.length > 0) { await connectToDatabase(); await User.updateMany( { assignedNumber: { $in: numbers } }, { $set: { isEliminated: true } } ); io.emit('event:playersEliminated', { numbers }); } });
+    socket.on('admin:resetAllEliminations', async () => { try { await connectToDatabase(); await User.updateMany({ role: 'student' }, { $set: { isEliminated: false } }); io.emit('event:allPlayersReset'); } catch (error) { console.error('Error resetting eliminations:', error); } });
+    socket.on('admin:unEliminatePlayer', async (data) => { const { sapId } = data; if (!sapId) return; try { await connectToDatabase(); const updatedUser = await User.findOneAndUpdate( { sapId }, { $set: { isEliminated: false } }, { new: true } ); if (updatedUser) io.emit('event:playerUnEliminated', { sapId: updatedUser.sapId }); } catch (error) { console.error('Error un-eliminating player:', error); } });
+    socket.on('admin:updateCoins', async (data) => { const { sapId, changeAmount } = data; if (!sapId || isNaN(changeAmount)) return; try { await connectToDatabase(); const updatedUser = await User.findOneAndUpdate({ sapId }, { $inc: { coins: parseInt(changeAmount) } }, { new: true }); if (updatedUser) io.emit('event:coinsUpdated', { sapId, newBalance: updatedUser.coins }); } catch (error) { console.error('Error updating coins in database:', error); } });
+    socket.on('admin:endAuction', async (data) => { const { winnerSapId, itemName, finalBid } = data; if (!winnerSapId || !itemName || isNaN(finalBid)) return console.error('Invalid data for auction end:', data); try { await connectToDatabase(); const updatedUser = await User.findOneAndUpdate( { sapId: winnerSapId }, { $inc: { coins: -finalBid }, $push: { wonItems: { name: itemName, winningBid: finalBid } } }, { new: true } ); if (updatedUser) { io.emit('event:auctionEnded', { winnerSapId, itemName, finalBid }); io.emit('event:coinsUpdated', { sapId: updatedUser.sapId, newBalance: updatedUser.coins }); } } catch (error) { console.error('Error processing auction winner:', error); } });
     socket.on('admin:startAuction', (data) => io.emit('event:auctionStarted', data));
     socket.on('student:placeBid', (data) => io.emit('event:newBid', data));
 
-    // UNCHANGED: Disconnect logic is kept
     socket.on('disconnect', async () => {
-        await User.findOneAndUpdate({ socketId: socket.id }, { socketId: null });
-        console.log(`Socket disconnected: ${socket.id}`);
+        try {
+            await connectToDatabase();
+            await User.findOneAndUpdate({ socketId: socket.id }, { socketId: null });
+            console.log(`Socket disconnected: ${socket.id}`);
+        } catch (error) {
+            console.error('Error on disconnect:', error);
+        }
     });
 });
 
 // --- Serverless Export for Netlify ---
-// ADDED: This line wraps the app for serverless deployment.
 module.exports.handler = serverless(app);
 
 // --- Local Server Start (for development) ---
