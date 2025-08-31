@@ -35,10 +35,12 @@ event-app/
 ├── .env                   # Environment variables (not committed)
 │
 ├── public/                # Frontend files
+|   ├── media/            # Media
 │   ├── index.html        # Student Portal
 │   ├── admin.html        # Admin Dashboard
 │   ├── style.css         # Styling for both pages
 │   ├── app.js           # Student Portal JavaScript
+|   ├── admin-auth.js    # Admin Authenication JavaScript
 │   └── admin.js         # Admin Dashboard JavaScript
 │
 ├── functions/            # Backend serverless functions
