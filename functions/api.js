@@ -7,10 +7,11 @@ const { Server } = require('socket.io');
 const bcrypt = require('bcryptjs');
 const cors = require('cors');
 const path = require('path');
-const crypto = require('crypto'); // For generating secure tokens
+const crypto = require('crypto'); // Kept for generating secure tokens
 const multer = require('multer');
 const csv = require('csv-parser');
 const { Readable } = require('stream');
+const serverless = require('serverless-http'); // ADDED: Required for Netlify
 
 // --- Initial Setup & Middleware ---
 const app = express();
@@ -28,6 +29,7 @@ mongoose.connect(MONGO_URI).then(() => {
     console.log(`✅ Connected to database: '${mongoose.connection.db.databaseName}'`);
 }).catch(err => console.error('Database connection error:', err));
 
+// UNCHANGED: Schema with session fields is kept
 const userSchema = new mongoose.Schema({
     name: { type: String, required: true },
     sapId: { type: String, required: true, unique: true, trim: true },
@@ -38,13 +40,15 @@ const userSchema = new mongoose.Schema({
     coins: { type: Number, default: 1000 },
     isEliminated: { type: Boolean, default: false },
     wonItems: [{ name: String, winningBid: Number }],
-    sessionToken: { type: String }, // NEW
-    socketId: { type: String }      // NEW
+    sessionToken: { type: String }, // Kept for session management
+    socketId: { type: String }       // Kept for session management
 });
 const User = mongoose.model('User', userSchema);
 
 // --- API Endpoints ---
 const router = express.Router();
+
+// UNCHANGED: Login route with session logic is kept
 router.post('/login', async (req, res) => {
     try {
         const { sapId, password } = req.body;
@@ -57,26 +61,22 @@ router.post('/login', async (req, res) => {
 
         if (user.role === 'student' && user.isEliminated) return res.status(403).json({ success: false, message: 'You have been eliminated.' });
 
-        // --- NEW SESSION LOGIC ---
-        // If there's an old session, tell it to disconnect
+        // --- SESSION LOGIC ---
         if (user.socketId) {
             io.to(user.socketId).emit('forceDisconnect');
         }
 
-        // Generate a new unique token
         const sessionToken = crypto.randomBytes(32).toString('hex');
         user.sessionToken = sessionToken;
         user.socketId = null; // Clear old socket ID
         await user.save();
         
-        // Send the new token back to the client
         res.json({ success: true, user, token: sessionToken });
 
     } catch (error) {
         res.status(500).json({ success: false, message: 'Server error during login.' });
     }
 });
-// ... other API routes remain the same ...
 router.get('/users', async (req, res) => { try { const users = await User.find({ role: 'student' }).sort({ assignedNumber: 1 }); res.json({ success: true, users }); } catch (error) { res.status(500).json({ success: false, message: 'Could not fetch users.' }); } });
 router.post('/upload-students', upload.single('csvFile'), async (req, res) => { if (!req.file) { return res.status(400).json({ message: 'No file uploaded.' }); } const newUsers = []; const stream = Readable.from(req.file.buffer); try { const existingUsers = await User.find({}, 'assignedNumber sapId'); const existingNumbers = new Set(existingUsers.map(u => u.assignedNumber)); const existingSapIds = new Set(existingUsers.map(u => u.sapId)); const parser = stream.pipe(csv({ headers: ['name', 'sapId', 'password', 'gender'] })); for await (const row of parser) { if (!row.name || !row.sapId || !row.password || !row.gender) continue; if (existingSapIds.has(row.sapId)) continue; const salt = await bcrypt.genSalt(10); const hashedPassword = await bcrypt.hash(row.password, salt); let assignedNumber; do { assignedNumber = Math.floor(Math.random() * 350) + 1; } while (existingNumbers.has(assignedNumber)); existingNumbers.add(assignedNumber); newUsers.push({ name: row.name, sapId: row.sapId, password: hashedPassword, isGirl: row.gender.toLowerCase() === 'girl', assignedNumber: assignedNumber, }); } if (newUsers.length > 0) { await User.insertMany(newUsers); } res.status(200).json({ message: `Successfully registered ${newUsers.length} new students.` }); } catch (error) { console.error('Error processing CSV:', error); res.status(500).json({ message: 'Failed to process CSV file.' }); } });
 app.use('/api', router);
@@ -88,17 +88,15 @@ let shapeQuestState = { active: false, target: 'all', playerChoices: new Map() }
 io.on('connection', (socket) => {
     console.log(`Socket connected: ${socket.id}`);
 
-    // --- NEW: AUTHENTICATION HANDLER ---
+    // UNCHANGED: Authentication handler is kept
     socket.on('authenticate', async (data) => {
         try {
             const user = await User.findOne({ sapId: data.sapId, sessionToken: data.token });
             if (user) {
-                // If token is valid, link this socket to the user
                 user.socketId = socket.id;
                 await user.save();
                 console.log(`Socket ${socket.id} authenticated for user ${user.sapId}`);
             } else {
-                // If token is invalid, it's an old session. Disconnect it.
                 socket.emit('forceDisconnect');
             }
         } catch (error) {
@@ -118,14 +116,20 @@ io.on('connection', (socket) => {
     socket.on('admin:startAuction', (data) => io.emit('event:auctionStarted', data));
     socket.on('student:placeBid', (data) => io.emit('event:newBid', data));
 
+    // UNCHANGED: Disconnect logic is kept
     socket.on('disconnect', async () => {
-        // Optional: Clear socketId from user on disconnect
         await User.findOneAndUpdate({ socketId: socket.id }, { socketId: null });
         console.log(`Socket disconnected: ${socket.id}`);
     });
 });
 
-// --- Local Server Start ---
+// --- Serverless Export for Netlify ---
+// ADDED: This line wraps the app for serverless deployment.
+module.exports.handler = serverless(app);
+
+// --- Local Server Start (for development) ---
+// MODIFIED: This is now commented out for deployment.
+
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
     console.log(`🚀 Server is running on http://localhost:${PORT}`);

@@ -35,7 +35,7 @@ event-app/
 ├── .env                   # Environment variables (not committed)
 │
 ├── public/                # Frontend files
-|   ├── media/            # Media
+|   ├── media/            # Media files
 │   ├── index.html        # Student Portal
 │   ├── admin.html        # Admin Dashboard
 │   ├── style.css         # Styling for both pages
