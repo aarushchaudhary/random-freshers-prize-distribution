@@ -18,10 +18,8 @@ const app = express();
 const server = http.createServer(app);
 app.use(cors());
 
-// --- MODIFIED SOCKET.IO CONFIG ---
 const io = new Server(server, { 
     cors: { origin: "*", methods: ["GET", "POST"] },
-    // This forces WebSocket-only communication to fix session errors
     transports: ['websocket'] 
 });
 
@@ -34,13 +32,24 @@ let conn = null;
 const MONGO_URI = process.env.MONGO_URI;
 
 const connectToDatabase = async () => {
+  // FINAL DIAGNOSTIC LOG: This will show in your Netlify function logs.
+  console.log("Function invoked. MONGO_URI value is:", MONGO_URI ? `set, starting with ${MONGO_URI.substring(0, 20)}...` : "!!! MONGO_URI IS NULL OR UNDEFINED !!!");
+
   if (conn == null) {
-    console.log('Creating new database connection...');
-    conn = mongoose.connect(MONGO_URI, {
-      serverSelectionTimeoutMS: 5000 
-    }).then(() => mongoose);
-    await conn;
-    console.log('✅ New database connection established.');
+    console.log('Attempting to create new database connection...');
+    try {
+      conn = mongoose.connect(MONGO_URI, {
+        serverSelectionTimeoutMS: 5000 
+      }).then(() => mongoose);
+      await conn;
+      console.log('✅✅✅ SUCCESS: New database connection established.');
+    } catch (e) {
+      console.error("❌❌❌ FATAL: Database connection failed during mongoose.connect()", e);
+      conn = null;
+      throw e;
+    }
+  } else {
+      console.log('Reusing existing database connection.');
   }
   return conn;
 };
@@ -82,7 +91,7 @@ router.post('/login', async (req, res) => {
         await user.save();
         res.json({ success: true, user, token: sessionToken });
     } catch (error) {
-        console.error('Error during login:', error);
+        console.error('CRASH in /api/login route:', error);
         res.status(500).json({ success: false, message: 'Server error during login.' });
     }
 });
@@ -128,7 +137,6 @@ router.post('/upload-students', upload.single('csvFile'), async (req, res) => {
         res.status(500).json({ message: 'Failed to process CSV file.' }); 
     } 
 });
-
 
 app.use('/api', router);
 
