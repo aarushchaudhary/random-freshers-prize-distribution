@@ -24,10 +24,23 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 // --- Database Connection & Schema ---
 const MONGO_URI = process.env.MONGO_URI;
-mongoose.connect(MONGO_URI).then(() => {
+
+// NEW, more robust connection logic
+mongoose.connect(MONGO_URI)
+  .then(() => {
     console.log('✅ Successfully connected to MongoDB Atlas.');
     console.log(`✅ Connected to database: '${mongoose.connection.db.databaseName}'`);
-}).catch(err => console.error('Database connection error:', err));
+  })
+  .catch(err => {
+    console.error('Initial Database connection error:', err);
+    // Exit the process if the initial connection fails
+    process.exit(1); 
+  });
+
+// To handle errors after initial connection was established
+mongoose.connection.on('error', err => {
+  console.error('MongoDB runtime error:', err);
+});
 
 // UNCHANGED: Schema with session fields is kept
 const userSchema = new mongoose.Schema({
