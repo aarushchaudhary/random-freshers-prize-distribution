@@ -1,5 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const socket = io();
+    // MODIFIED to force WebSocket transport
+    const socket = io({ transports: ['websocket'] });
 
     // Elements
     const userList = document.getElementById('user-list');
@@ -22,8 +23,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const startAuctionBtn = document.getElementById('start-auction-btn');
     const endAuctionBtn = document.getElementById('end-auction-btn');
     const auctionLogDisplay = document.getElementById('auction-log-display');
-
-    // Pagination Elements
     const prevPageBtn = document.getElementById('prev-page-btn');
     const nextPageBtn = document.getElementById('next-page-btn');
     const currentPageSpan = document.getElementById('current-page');
@@ -36,7 +35,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentHighBid = { sapId: null, name: null, bidAmount: 0 };
     let questTimerInterval;
 
-    // --- HELPER FUNCTIONS ---
     async function fetchAndRenderUsers() {
         try {
             const response = await fetch('/api/users');
@@ -54,13 +52,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const totalPages = Math.ceil(allUsers.length / itemsPerPage);
         totalPagesSpan.textContent = totalPages > 0 ? totalPages : 1;
         currentPageSpan.textContent = currentPage;
-
         const startIndex = (currentPage - 1) * itemsPerPage;
         const endIndex = startIndex + itemsPerPage;
         const pageUsers = allUsers.slice(startIndex, endIndex);
-        
         renderUserList(pageUsers);
-
         prevPageBtn.disabled = currentPage === 1;
         nextPageBtn.disabled = currentPage >= totalPages;
     }
@@ -87,13 +82,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const activePlayers = users.filter(user => !user.isEliminated);
         const activeBoys = activePlayers.filter(user => !user.isEliminated && !user.isGirl).length;
         const activeGirls = activePlayers.filter(user => !user.isEliminated && user.isGirl).length;
-        
         activeTotalDisplay.textContent = activePlayers.length;
         activeBoysDisplay.textContent = activeBoys;
         activeGirlsDisplay.textContent = activeGirls;
     }
 
-    // --- EVENT LISTENERS ---
     logoutBtn.addEventListener('click', () => { window.location.href = 'index.html'; });
 
     prevPageBtn.addEventListener('click', () => {
@@ -115,11 +108,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (questTimerInterval) return;
         const target = document.querySelector('input[name="quest-target"]:checked').value;
         socket.emit('admin:startShapeQuest', { target });
-        
         let timeLeft = 15;
         questStatus.textContent = `Quest is LIVE for ${target.toUpperCase()}! Time left: ${timeLeft}s`;
         startQuestBtn.disabled = true;
-
         questTimerInterval = setInterval(() => {
             timeLeft--;
             questStatus.textContent = `Quest is LIVE for ${target.toUpperCase()}! Time left: ${timeLeft}s`;
@@ -196,12 +187,10 @@ document.addEventListener('DOMContentLoaded', () => {
         } else { alert('No bids placed yet to end the auction.'); }
     });
 
-    // --- SOCKET.IO LISTENERS ---
-    socket.on('connect', () => { console.log('Admin connected to server.'); fetchAndRenderUsers(); });
+    socket.on('connect', () => { console.log('Admin connected via WebSocket.'); fetchAndRenderUsers(); });
     socket.on('event:playersEliminated', () => fetchAndRenderUsers());
     socket.on('event:playerUnEliminated', () => fetchAndRenderUsers());
     socket.on('event:coinsUpdated', (data) => { fetchAndRenderUsers(); });
-    
     socket.on('event:newBid', (data) => {
         if (data.bidAmount > currentHighBid.bidAmount) {
             currentHighBid = data;
@@ -211,7 +200,6 @@ document.addEventListener('DOMContentLoaded', () => {
         auctionLogDisplay.appendChild(logEntry);
         auctionLogDisplay.scrollTop = auctionLogDisplay.scrollHeight;
     });
-    
     socket.on('event:auctionEnded', (data) => {
         const winnerEntry = document.createElement('p');
         winnerEntry.className = 'winner';
@@ -220,6 +208,5 @@ document.addEventListener('DOMContentLoaded', () => {
         auctionLogDisplay.scrollTop = auctionLogDisplay.scrollHeight;
     });
     
-    // --- INITIAL LOAD ---
     fetchAndRenderUsers();
 });

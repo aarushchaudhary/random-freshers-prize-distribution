@@ -1,5 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const socket = io();
+    // MODIFIED to force WebSocket transport
+    const socket = io({ transports: ['websocket'] });
 
     // Views & Overlays
     const loginView = document.getElementById('login-view');
@@ -23,35 +24,30 @@ document.addEventListener('DOMContentLoaded', () => {
     const shapeQuestContent = document.querySelector('.shape-quest-content');
 
     let currentUser = null;
-    let sessionToken = null; // To store the session token
+    let sessionToken = null;
     let shapeQuestTimerInterval;
 
-    // --- NEW: Authenticate the socket connection on connect/reconnect ---
     socket.on('connect', () => {
+        console.log('Socket connected via WebSocket.');
         if (currentUser && sessionToken) {
             socket.emit('authenticate', { sapId: currentUser.sapId, token: sessionToken });
         }
     });
 
-    // --- NEW: Handle forced disconnection from the server ---
     socket.on('forceDisconnect', () => {
         alert('Another device has logged into this account. You have been disconnected.');
-        sessionStorage.clear(); // Clear all session data
+        sessionStorage.clear();
         location.reload();
     });
 
-    // --- SESSION & LOGIN (UPDATED) ---
     function checkSession() {
-        const savedSession = sessionStorage.getItem('sessionData'); // Read combined session data
+        const savedSession = sessionStorage.getItem('sessionData');
         if (savedSession) {
             const { user, token } = JSON.parse(savedSession);
             currentUser = user;
             sessionToken = token;
-
-            // If the user is already eliminated, show the overlay immediately
             if (currentUser.isEliminated) {
                 eliminatedOverlay.classList.remove('hidden');
-                // We still show the game view behind the overlay
             }
             showGameView();
         }
@@ -69,15 +65,12 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             const data = await response.json();
             if (data.success) {
-                // Store both user object and session token
                 sessionStorage.setItem('sessionData', JSON.stringify({ user: data.user, token: data.token }));
-                
                 if (data.user.role === 'admin') {
                     window.location.href = 'admin.html';
                 } else {
                     currentUser = data.user;
                     sessionToken = data.token;
-                    // Authenticate the new socket connection immediately
                     socket.emit('authenticate', { sapId: currentUser.sapId, token: sessionToken });
                     showGameView();
                 }
@@ -92,11 +85,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     logoutBtn.addEventListener('click', () => {
-        sessionStorage.removeItem('sessionData'); // Clear the correct session item
+        sessionStorage.removeItem('sessionData');
         location.reload();
     });
 
-    // --- UI DISPLAY ---
     function showGameView() {
         loginView.classList.add('hidden');
         gameView.classList.remove('hidden');
@@ -120,8 +112,7 @@ document.addEventListener('DOMContentLoaded', () => {
             wonItemsList.appendChild(li);
         }
     }
-
-    // --- SOCKET.IO EVENT LISTENERS ---
+    
     socket.on('event:shapeQuestStarted', (data) => {
         if (currentUser && !currentUser.isEliminated) {
             const myGender = currentUser.isGirl ? 'girls' : 'boys';
@@ -168,7 +159,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentUser && data.numbers.includes(currentUser.assignedNumber)) {
             eliminatedOverlay.classList.remove('hidden');
             currentUser.isEliminated = true;
-            // Persist the updated user state to session storage
             sessionStorage.setItem('sessionData', JSON.stringify({ user: currentUser, token: sessionToken }));
         }
     });
@@ -177,7 +167,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentUser && data.sapId === currentUser.sapId) { 
             eliminatedOverlay.classList.add('hidden'); 
             currentUser.isEliminated = false; 
-            // Persist the updated user state to session storage
             sessionStorage.setItem('sessionData', JSON.stringify({ user: currentUser, token: sessionToken }));
         } 
     });
@@ -186,7 +175,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentUser && data.sapId === currentUser.sapId) { 
             playerCoinsDisplay.textContent = data.newBalance; 
             currentUser.coins = data.newBalance; 
-            // Persist the updated user state to session storage
             sessionStorage.setItem('sessionData', JSON.stringify({ user: currentUser, token: sessionToken }));
         } 
     });
@@ -196,7 +184,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentUser && data.winnerSapId === currentUser.sapId) { 
             currentUser.wonItems.push({ name: data.itemName, winningBid: data.finalBid }); 
             renderWonItems(); 
-            // Persist the updated user state to session storage
             sessionStorage.setItem('sessionData', JSON.stringify({ user: currentUser, token: sessionToken }));
         } 
     });
@@ -236,6 +223,5 @@ document.addEventListener('DOMContentLoaded', () => {
         bidAmountInput.value = ''; 
     }
     
-    // Initial check on page load
     checkSession();
 });
