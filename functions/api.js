@@ -63,6 +63,7 @@ const User = mongoose.models.User || mongoose.model('User', userSchema);
 const router = express.Router();
 
 router.post('/login', async (req, res) => {
+    console.log("Netlify Function is using URI:", process.env.MONGO_URI); 
     try {
         await connectToDatabase(); 
         console.log('Login attempt after DB connection.');
