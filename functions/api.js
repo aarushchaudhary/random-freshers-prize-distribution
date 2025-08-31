@@ -15,7 +15,7 @@ const serverless = require('serverless-http');
 
 // --- Initial Setup & Middleware ---
 const app = express();
-const server = http.createServer(app);
+const server = http.createServer(app); // The http server instance
 app.use(cors());
 const io = new Server(server, { cors: { origin: "*", methods: ["GET", "POST"] } });
 app.use(express.json());
@@ -33,7 +33,6 @@ const connectToDatabase = async () => {
       serverSelectionTimeoutMS: 5000 
     }).then(() => mongoose);
 
-    // `await` the connection promise to ensure it's established
     await conn;
     console.log('✅ New database connection established.');
   } else {
@@ -56,7 +55,6 @@ const userSchema = new mongoose.Schema({
     sessionToken: { type: String },
     socketId: { type: String }
 });
-// Ensure the model is not re-compiled if it already exists
 const User = mongoose.models.User || mongoose.model('User', userSchema);
 
 // --- API Endpoints ---
@@ -144,6 +142,7 @@ let shapeQuestState = { active: false, target: 'all', playerChoices: new Map() }
 
 // --- Real-Time Logic with Socket.IO ---
 io.on('connection', (socket) => {
+    // ... all your socket logic remains here ...
     console.log(`Socket connected: ${socket.id}`);
 
     socket.on('authenticate', async (data) => {
@@ -184,8 +183,10 @@ io.on('connection', (socket) => {
     });
 });
 
-// --- Serverless Export for Netlify ---
-module.exports.handler = serverless(app);
+// --- Serverless Export ---
+// THIS IS THE CRITICAL FIX for the 404 error
+// We are now exporting the 'server' instance, not just the 'app'
+module.exports.handler = serverless(server);
 
 // --- Local Server Start (for development) ---
 // MODIFIED: This is now commented out for deployment.
