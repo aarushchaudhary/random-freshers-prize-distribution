@@ -112,14 +112,14 @@ document.addEventListener('DOMContentLoaded', () => {
             wonItemsList.appendChild(li);
         }
     }
-    
-    socket.on('event:shapeQuestStarted', (data) => {
+
+    function startShapeQuest(duration, target) {
         if (currentUser && !currentUser.isEliminated) {
             const myGender = currentUser.isGirl ? 'girls' : 'boys';
-            if (data.target === 'all' || data.target === myGender) {
+            if (target === 'all' || target === myGender) {
                 shapeQuestContent.innerHTML = `
                     <h1>Choose Your Shape!</h1>
-                    <div id="shape-quest-timer">15</div>
+                    <div id="shape-quest-timer">${duration}</div>
                     <div class="shape-options">
                         <button class="shape-btn" data-shape="circle">○</button>
                         <button class="shape-btn" data-shape="triangle">△</button>
@@ -132,9 +132,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 
                 shapeQuestOverlay.classList.remove('hidden');
-                let timeLeft = 15;
+                let timeLeft = duration;
                 const timerDisplay = document.getElementById('shape-quest-timer');
-                if (timerDisplay) timerDisplay.textContent = timeLeft;
                 
                 if (shapeQuestTimerInterval) clearInterval(shapeQuestTimerInterval);
                 shapeQuestTimerInterval = setInterval(() => {
@@ -147,6 +146,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 }, 1000);
             }
         }
+    }
+
+    function renderAuction(data) {
+        auctionZone.innerHTML = `
+            <h3>NOW AUCTIONING: ${data.itemName}</h3>
+            <p>Current High Bid: <span id="high-bid">${data.highBid || 0}</span> SquidBits</p>
+            <div class="form-group" style="margin-top: 10px;">
+                <input type="number" id="bid-amount" placeholder="Your bid amount">
+            </div>
+            <button id="place-bid-btn">Place Bid</button>`;
+        document.getElementById('place-bid-btn').addEventListener('click', placeBid);
+    }
+    
+    socket.on('event:shapeQuestStarted', (data) => {
+        startShapeQuest(30, data.target);
+    });
+
+    socket.on('event:shapeQuestSync', (data) => {
+        console.log('Syncing to existing shape quest:', data);
+        startShapeQuest(data.remainingTime, data.target);
     });
     
     function handleShapeClick(event) {
@@ -188,15 +207,12 @@ document.addEventListener('DOMContentLoaded', () => {
         } 
     });
     
-    socket.on('event:auctionStarted', (data) => { 
-        auctionZone.innerHTML = `
-            <h3>NOW AUCTIONING: ${data.itemName}</h3>
-            <p>Current High Bid: <span id="high-bid">0</span> SquidBits</p>
-            <div class="form-group" style="margin-top: 10px;">
-                <input type="number" id="bid-amount" placeholder="Your bid amount">
-            </div>
-            <button id="place-bid-btn">Place Bid</button>`; 
-        document.getElementById('place-bid-btn').addEventListener('click', placeBid); 
+    socket.on('event:auctionStarted', (data) => {
+        renderAuction(data);
+    });
+
+    socket.on('event:auctionSync', (data) => {
+        renderAuction(data);
     });
     
     socket.on('event:newBid', (data) => { 

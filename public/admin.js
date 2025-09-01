@@ -34,6 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const itemsPerPage = 20;
     let currentHighBid = { sapId: null, name: null, bidAmount: 0 };
     let questTimerInterval;
+    let adminTimerInterval;
 
     async function fetchAndRenderUsers() {
         try {
@@ -105,29 +106,51 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     startQuestBtn.addEventListener('click', () => {
-        if (questTimerInterval) return;
+        if (questTimerInterval || adminTimerInterval) return;
         const target = document.querySelector('input[name="quest-target"]:checked').value;
         socket.emit('admin:startShapeQuest', { target });
-        let timeLeft = 15;
-        questStatus.textContent = `Quest is LIVE for ${target.toUpperCase()}! Time left: ${timeLeft}s`;
+        let timeLeft = 30;
+        questStatus.textContent = `Quest is LIVE for ${target.toUpperCase()}! Student time left: ${timeLeft}s`;
         startQuestBtn.disabled = true;
+        eliminateShapeBtns.forEach(btn => btn.disabled = true); // Disable buttons
         questTimerInterval = setInterval(() => {
             timeLeft--;
-            questStatus.textContent = `Quest is LIVE for ${target.toUpperCase()}! Time left: ${timeLeft}s`;
+            questStatus.textContent = `Quest is LIVE for ${target.toUpperCase()}! Student time left: ${timeLeft}s`;
             if (timeLeft <= 0) {
                 clearInterval(questTimerInterval);
                 questTimerInterval = null;
-                questStatus.textContent = "Time's up! Choose a shape to eliminate.";
-                startQuestBtn.disabled = false;
+                startAdminTimer();
             }
         }, 1000);
     });
+
+    function startAdminTimer() {
+        let adminTimeLeft = 10;
+        questStatus.textContent = `Time's up! Choose a shape to eliminate. You have ${adminTimeLeft}s.`;
+        eliminateShapeBtns.forEach(btn => btn.disabled = false); // Enable buttons
+        adminTimerInterval = setInterval(() => {
+            adminTimeLeft--;
+            questStatus.textContent = `Time's up! Choose a shape to eliminate. You have ${adminTimeLeft}s.`;
+            if (adminTimeLeft <= 0) {
+                clearInterval(adminTimerInterval);
+                adminTimerInterval = null;
+                questStatus.textContent = "Admin time is up! Quest finished.";
+                startQuestBtn.disabled = false;
+                eliminateShapeBtns.forEach(btn => btn.disabled = true); // Disable buttons
+                 setTimeout(() => { questStatus.textContent = 'Status: Idle'; }, 4000);
+            }
+        }, 1000);
+    }
 
     eliminateShapeBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             const shape = btn.dataset.shape;
             socket.emit('admin:eliminateShape', { shape });
             questStatus.textContent = `Elimination signal sent for shape: ${shape.toUpperCase()}.`;
+            clearInterval(adminTimerInterval);
+            adminTimerInterval = null;
+            startQuestBtn.disabled = false;
+            eliminateShapeBtns.forEach(b => b.disabled = true); // Disable buttons
             setTimeout(() => { questStatus.textContent = 'Status: Idle'; }, 4000);
         });
     });
@@ -208,5 +231,7 @@ document.addEventListener('DOMContentLoaded', () => {
         auctionLogDisplay.scrollTop = auctionLogDisplay.scrollHeight;
     });
     
+    // Initial setup
+    eliminateShapeBtns.forEach(btn => btn.disabled = true);
     fetchAndRenderUsers();
 });
