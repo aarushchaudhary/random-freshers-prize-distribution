@@ -18,9 +18,12 @@ const app = express();
 const server = http.createServer(app);
 app.use(cors());
 
-const io = new Server(server, { 
-    cors: { origin: "*", methods: ["GET", "POST"] },
-    transports: ['websocket'] 
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  },
+  transports: ['websocket', 'polling']
 });
 
 app.use(express.json());
